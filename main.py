@@ -1,7 +1,7 @@
-import src.classifier_regressor
-import src.rl_env
-import src.agent
-import src.evaluation
+from src.classifier_regressor import
+from src.rl_env import
+from src.dqn import DQN
+from src.evaluation import
 
 # RL environment
 # add provision_bins
