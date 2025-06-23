@@ -193,5 +193,8 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-# Ignore raw Kaggle data
-data/raw/
+# Ignore all CSV files in data/raw/
+data/raw/*.csv
+
+# But keep the folder itself
+!data/raw/
