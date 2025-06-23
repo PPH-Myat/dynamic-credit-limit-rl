@@ -198,3 +198,6 @@ data/raw/*.csv
 
 # But keep the folder itself
 !data/raw/
+
+# Ignore PyCharm project files
+.idea/
