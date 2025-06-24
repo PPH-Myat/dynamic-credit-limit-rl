@@ -6,6 +6,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, accuracy_score, f1_score, confusion_matrix
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
+import os
 
 def prepare_train_set(past_df, current_df):
     labels = current_df[["SK_ID_CURR", "BALANCE_CLASS"]]
@@ -75,6 +76,7 @@ def evaluate_model(model, X, y_true, label="", precomputed=False):
     return y_pred
 
 def plot_feature_importance(model, X_train, model_name):
+
     if hasattr(model, "feature_importances_"):
         importance_df = pd.DataFrame({
             "Feature": X_train.columns,
@@ -84,9 +86,14 @@ def plot_feature_importance(model, X_train, model_name):
         print(f"\nTop 10 Features - {model_name}:\n")
         print(importance_df.head(10))
 
-        sns.barplot(data=importance_df.head(10), x="Importance", y="Feature")
+        os.makedirs("../results", exist_ok=True)
+
+        plt.figure(figsize=(8, 5))
+        sns.barplot(data=importance_df.head(10), x="Importance", y="Feature", palette="viridis")
         plt.title(f"Top 10 Features - {model_name}")
         plt.tight_layout()
+        plt.savefig("../results/classifier_feature_importance.png")
         plt.show()
     else:
         print(f"{model_name} does not support feature_importances_.")
+
