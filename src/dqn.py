@@ -48,6 +48,7 @@ class DQNTrainer:
     def __init__(self, env, model_path='best_dqn_model.pth', buffer_capacity=50000):
         self.env = env
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"[INFO] Using device: {self.device}")
         self.model_path = model_path
         self.pretrained_loaded = False
 
