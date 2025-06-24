@@ -1,3 +1,12 @@
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+import random
+import time
+from collections import deque
+
 # ------------------------- Neural Network ------------------------- #
 class DQN(nn.Module):
     def __init__(self, input_dim, output_dim):
@@ -23,23 +32,25 @@ class ReplayBuffer:
         samples = random.sample(self.buffer, batch_size)
         states, actions, rewards, next_states, dones = zip(*samples)
 
-        states = np.array(states).astype(np.float32)
-        next_states = np.array(next_states).astype(np.float32)
+        states = np.array(states, dtype=np.float32)
+        next_states = np.array(next_states, dtype=np.float32)
 
-        return (torch.tensor(states, dtype=torch.float32),
-                torch.tensor(actions, dtype=torch.int64).unsqueeze(1),
-                torch.tensor(rewards, dtype=torch.float32).unsqueeze(1),
-                torch.tensor(next_states, dtype=torch.float32),
-                torch.tensor(dones, dtype=torch.float32).unsqueeze(1))
+        return (
+            torch.tensor(states, dtype=torch.float32),
+            torch.tensor(actions, dtype=torch.int64).unsqueeze(1),
+            torch.tensor(rewards, dtype=torch.float32).unsqueeze(1),
+            torch.tensor(next_states, dtype=torch.float32),
+            torch.tensor(dones, dtype=torch.float32).unsqueeze(1)
+        )
 
     def __len__(self):
         return len(self.buffer)
 
 # ------------------------- Main Training Function ------------------------- #
-def train_dqn(env, episodes=10, gamma=0.99, epsilon_start=1.0, epsilon_end=0.05,
+def train_dqn(env, episodes=100, gamma=0.99, epsilon_start=1.0, epsilon_end=0.05,
               epsilon_decay=0.995, batch_size=64, target_update_freq=10,
               model_path='best_dqn_model.pth'):
-    global action, last_action
+
     start_time = time.time()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -69,12 +80,10 @@ def train_dqn(env, episodes=10, gamma=0.99, epsilon_start=1.0, epsilon_end=0.05,
             if np.random.rand() < epsilon:
                 action = np.random.choice(env.action_space)
             else:
-                with torch.no_grad():
-                    state_tensor = torch.tensor([state], dtype=torch.float32).to(device)
+                with torch.inference_mode():
+                    state_tensor = torch.as_tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
                     q_values = policy_net(state_tensor)
                     action = torch.argmax(q_values).item()
-
-            last_action = action
 
             next_state, reward, done, _ = env.step(action)
             total_reward += reward
@@ -82,15 +91,18 @@ def train_dqn(env, episodes=10, gamma=0.99, epsilon_start=1.0, epsilon_end=0.05,
             action_counter[action] += 1
             state = next_state
 
+            # Train only if buffer is ready
             if len(buffer) >= batch_size:
                 states, actions, rewards, next_states, dones = buffer.sample(batch_size)
+
+                # Send tensors to device only once
                 states = states.to(device)
                 actions = actions.to(device)
                 rewards = rewards.to(device)
                 next_states = next_states.to(device)
                 dones = dones.to(device)
 
-                with torch.no_grad():
+                with torch.inference_mode():
                     next_actions = policy_net(next_states).argmax(1, keepdim=True)
                     next_q_values = target_net(next_states).gather(1, next_actions)
                     target_q = rewards + gamma * next_q_values * (1 - dones)
@@ -102,21 +114,25 @@ def train_dqn(env, episodes=10, gamma=0.99, epsilon_start=1.0, epsilon_end=0.05,
                 loss.backward()
                 optimizer.step()
 
+        # Target network update
         if episode % target_update_freq == 0:
             target_net.load_state_dict(policy_net.state_dict())
 
+        # Save best model
         if total_reward > max_reward:
             max_reward = total_reward
-            best_state_action_pairs.append((state,  last_action))
+            best_state_action_pairs.append((state, action))
             torch.save(policy_net.state_dict(), model_path)
 
         reward_history.append(total_reward)
         epsilon = max(epsilon_end, epsilon * epsilon_decay)
 
-        print(f"Episode {episode} | Reward: {total_reward:.3f} | Epsilon: {epsilon:.3f} | Best Reward: {max_reward:.3f}")
+        print(f"Episode {episode+1} | Reward: {total_reward:.4f} | Epsilon: {epsilon:.4f} | Best: {max_reward:.4f}")
 
-    print(f"\nTraining complete! Best Reward: {max_reward:.3f}")
-    print("Action Selection Distribution:", action_counter)
-    print("Model trained on device:", next(policy_net.parameters()).device)
+    duration = time.time() - start_time
+    print(f"\nTraining complete in {duration/60:.2f} minutes")
+    print("Best Reward:", max_reward)
+    print("Action Distribution:", action_counter)
+    print("Trained on device:", device)
 
     return policy_net, best_state_action_pairs, reward_history, action_counter

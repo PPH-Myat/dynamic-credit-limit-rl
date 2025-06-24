@@ -1,3 +1,8 @@
+import numpy as np
+import torch
+import matplotlib.pyplot as plt
+
+
 # ------------------------- DQN Agent Wrapper ------------------------- #
 class DQNAgent:
     def __init__(self, model, action_space):
@@ -32,3 +37,35 @@ def evaluate_policy(agent, env, n_runs=10, benchmark=None):
             state = next_state
         rewards.append(total_reward)
     return rewards
+
+# def plot_policy_comparison(results_dict, title="Policy Evaluation (Avg Rewards)"):
+#     """
+#     Plot average rewards for each policy.
+#
+#     Parameters:
+#     - results_dict: dict like {'RL': rewards_list, 'Random': [...], ...}
+#     """
+#     labels = list(results_dict.keys())
+#     averages = [np.mean(v) for v in results_dict.values()]
+#     colors = ['blue', 'gray', 'red', 'green'][:len(labels)]
+#
+#     plt.figure(figsize=(8, 5))
+#     plt.bar(labels, averages, color=colors)
+#     plt.title(title)
+#     plt.ylabel("Average Total Reward")
+#     plt.grid(True)
+#     plt.show()
+
+def plot_policy_comparison(results_dict, title="Policy Evaluation (Avg Rewards)"):
+    labels = list(results_dict.keys())
+    averages = [np.mean(v) for v in results_dict.values()]
+    std_errors = [np.std(v) / np.sqrt(len(v)) for v in results_dict.values()]
+    colors = ['blue', 'gray', 'red', 'green'][:len(labels)]
+
+    plt.figure(figsize=(8, 5))
+    plt.bar(labels, averages, yerr=std_errors, color=colors, capsize=5)
+    plt.title(title)
+    plt.ylabel("Average Total Reward")
+    plt.grid(True)
+    plt.show()
+
