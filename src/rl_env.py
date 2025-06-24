@@ -85,23 +85,40 @@ class CreditLimitEnv:
     def step(self, action):
         row = self.df.iloc[self.current_step]
 
+        # --- Simulated Action Outcome ---
         new_l_p = row['L_P'] * (1 + self.beta) if action == 1 else row['L_P']
         bal_3_pred = row['BAL_3_pred']
         pd_value = self.pd_dict[row['BALANCE_CLASS']]
 
+        # --- Simulated Reward ---
         reward = (
-            3 * row['INT'] * row['AVG_BALANCE_456'] * (1 - pd_value)
-            - pd_value * self.lgd * (bal_3_pred + self.ccf * (new_l_p - bal_3_pred))
+                3 * row['INT'] * row['AVG_BALANCE_456'] * (1 - pd_value)
+                - pd_value * self.lgd * (bal_3_pred + self.ccf * (new_l_p - bal_3_pred))
         )
         reward = np.clip(reward, -1e6, 1e6) / 1e6
 
+        # --- For Discretization of Next State ---
         delta_prov = (new_l_p - row['L_R']) / row['L_R'] if row['L_R'] != 0 else 0
         new_dp_bin = pd.cut([delta_prov], bins=self.provision_bins, labels=False, include_lowest=True)
         new_dp_bin = int(new_dp_bin[0]) if new_dp_bin.size > 0 and not pd.isna(new_dp_bin[0]) else 0
 
+        # --- Next State ---
         new_state = row[self.state_space].values.copy()
         new_state[self.state_space.index('D_PROVISION_bin')] = new_dp_bin
 
+        # --- True Ground-Truth for Offline Evaluation ---
+        actual_balance = row['AVG_BALANCE_123']  # <-- must exist in df
+        info = {
+            'actual_balance': actual_balance,
+            'interest_rate': row['INT'],
+            'pd': pd_value,
+            'lgd': self.lgd,
+            'new_limit': new_l_p,
+            'ccf': self.ccf
+        }
+
+        # --- Step Forward ---
         self.current_step = (self.current_step + 1) % self.n_customers
         done = self.current_step == 0
-        return new_state, reward, done, {}
+
+        return new_state, reward, done, info

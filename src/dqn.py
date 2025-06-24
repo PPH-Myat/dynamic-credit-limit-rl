@@ -102,7 +102,7 @@ def train_dqn(env, episodes=100, gamma=0.99, epsilon_start=1.0, epsilon_end=0.05
                 next_states = next_states.to(device)
                 dones = dones.to(device)
 
-                with torch.inference_mode():
+                with torch.no_grad():
                     next_actions = policy_net(next_states).argmax(1, keepdim=True)
                     next_q_values = target_net(next_states).gather(1, next_actions)
                     target_q = rewards + gamma * next_q_values * (1 - dones)
