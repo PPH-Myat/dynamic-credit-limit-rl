@@ -1,6 +1,7 @@
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import shap
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, accuracy_score, f1_score, confusion_matrix
@@ -96,4 +97,3 @@ def plot_feature_importance(model, X_train, model_name):
         plt.show()
     else:
         print(f"{model_name} does not support feature_importances_.")
-

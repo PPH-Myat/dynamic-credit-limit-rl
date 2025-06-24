@@ -7,6 +7,7 @@ import random
 import time
 import os
 from collections import deque
+from tqdm import trange
 
 # ------------------------- Neural Network ------------------------- #
 class DQN(nn.Module):
@@ -50,7 +51,6 @@ def train_dqn(env, episodes=300, gamma=0.99, epsilon_start=1.0, epsilon_end=0.05
               model_path='best_dqn_model.pth'):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("Training Device      :", device)
 
     input_dim = len(env.state_space)
     output_dim = len(env.action_space)
@@ -71,7 +71,7 @@ def train_dqn(env, episodes=300, gamma=0.99, epsilon_start=1.0, epsilon_end=0.05
 
     start_time = time.time()
 
-    for episode in range(episodes):
+    for episode in trange(episodes, desc="Training Episodes"):
         state = env.reset()
         total_reward = 0
         done = False
@@ -123,10 +123,8 @@ def train_dqn(env, episodes=300, gamma=0.99, epsilon_start=1.0, epsilon_end=0.05
         reward_history.append(total_reward)
         epsilon = max(epsilon_end, epsilon * epsilon_decay)
 
-        print(f"Episode {episode+1:3d} | Reward: {total_reward:8.3f} | Epsilon: {epsilon:.4f} | Best: {max_reward:.3f}")
-
         if os.environ.get("DEBUG", "0") == "1":
-            print(f"[DEBUG] Buffer: {len(buffer)} | Action Count: {action_counter}")
+            print(f"[DEBUG] Episode {episode+1} | Reward: {total_reward:.3f} | Buffer: {len(buffer)} | Action Count: {action_counter}")
 
     duration = time.time() - start_time
     print(f"\nTraining complete in {duration / 60:.2f} minutes")
