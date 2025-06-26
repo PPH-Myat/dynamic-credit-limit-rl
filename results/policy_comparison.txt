@@ -1,0 +1,18 @@
+Policy Comparison (Simulated vs Real Rewards)
+-------------------------------------------------
+RL Agent:
+  Simulated: 1959.5887 ± 204.7763
+  Real     : 2146.6152 ± 223.7287
+
+Random:
+  Simulated: 1575.6248 ± 202.6149
+  Real     : 1727.3497 ± 221.6405
+
+Never Increase:
+  Simulated: 1817.6555 ± 233.2124
+  Real     : 1990.0813 ± 254.8389
+
+Always Increase:
+  Simulated: 1628.8464 ± 246.0043
+  Real     : 1785.0919 ± 269.1260
+
