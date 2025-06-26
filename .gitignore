@@ -210,3 +210,4 @@ debugging.ipynb
 
 # Trained DQN model (PyTorch binary)
 models/best_dqn_model.pth
+models/best_dqn_model_meta.json
