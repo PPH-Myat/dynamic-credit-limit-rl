@@ -3,12 +3,13 @@ import torch
 import matplotlib.pyplot as plt
 import os
 
-# Ensure results folder exists
-os.makedirs("results", exist_ok=True)
+
+DEBUG_MODE = os.environ.get("DEBUG", "0") == "1"
+if not DEBUG_MODE:
+    os.makedirs("results", exist_ok=True)
 
 class EvaluationUtils:
 
-    # ------------------ Agent Wrapper ------------------ #
     class DQNAgent:
         def __init__(self, model, action_space):
             self.model = model
@@ -22,7 +23,6 @@ class EvaluationUtils:
                 q_values = self.model(state_tensor)
             return torch.argmax(q_values).item()
 
-    # ------------------ Policy Evaluation ------------------ #
     @staticmethod
     def evaluate_policy(agent, env, n_runs=10, benchmark=None):
         synthetic_rewards = []
@@ -47,7 +47,6 @@ class EvaluationUtils:
                 next_state, reward, done, info = env.step(action)
                 total_syn += float(reward)
 
-                # Real reward calculation
                 bal   = float(info.get("actual_balance", 0))
                 rate  = float(info.get("interest_rate", 0))
                 pd    = float(info.get("pd", 0.05))
@@ -65,13 +64,12 @@ class EvaluationUtils:
             synthetic_rewards.append(total_syn)
             real_rewards.append(total_real)
 
-            if os.environ.get("DEBUG", "0") == "1":
+            if DEBUG_MODE:
                 print(f"[EVAL] Run {run+1:02d} | Benchmark={benchmark or 'RL'} | "
                       f"SimReward={total_syn:.4f} | RealReward={total_real:.4f}")
 
         return synthetic_rewards, real_rewards
 
-    # ------------------ Plot: Sim vs Real Comparison ------------------ #
     @staticmethod
     def plot_policy_comparison(results_dict_sim, results_dict_real):
         labels = list(results_dict_sim.keys())
@@ -87,19 +85,26 @@ class EvaluationUtils:
         fig, ax = plt.subplots(figsize=(10, 6))
         ax.bar(x - width/2, means_sim, width, yerr=std_sim, label='Simulated', capsize=4)
         ax.bar(x + width/2, means_real, width, yerr=std_real, label='Real', capsize=4)
-
         ax.set_ylabel("Average Total Reward")
         ax.set_title("Policy Evaluation: Simulated vs Real Rewards")
         ax.set_xticks(x)
         ax.set_xticklabels(labels)
         ax.legend()
         ax.grid(True)
-
         plt.tight_layout()
-        plt.savefig("results/policy_comparison.png")
+
+        if not DEBUG_MODE:
+            plt.savefig("results/policy_comparison.png")
+            with open("results/policy_comparison.txt", "w", encoding="utf-8") as f:
+                f.write("Policy Comparison (Simulated vs Real Rewards)\n")
+                f.write("-------------------------------------------------\n")
+                for i, label in enumerate(labels):
+                    f.write(f"{label}:\n")
+                    f.write(f"  Simulated: {means_sim[i]:.4f} ± {std_sim[i]:.4f}\n")
+                    f.write(f"  Real     : {means_real[i]:.4f} ± {std_real[i]:.4f}\n\n")
+
         plt.show()
 
-    # ------------------ Plot: Training Reward Curve ------------------ #
     @staticmethod
     def plot_training_reward_history(reward_history):
         if reward_history is None or len(reward_history) == 0:
@@ -118,5 +123,8 @@ class EvaluationUtils:
         plt.title("DQN Training Reward Curve")
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig("results/training_reward.png")
+
+        if not DEBUG_MODE:
+            plt.savefig("results/training_reward.png")
+
         plt.show()
