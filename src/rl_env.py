@@ -24,15 +24,17 @@ class CreditLimitEnv:
         self.lgd = 0.5
         self.ccf = 0.8
 
+        self.model_0 = None
+        self.model_1 = None
+
         self.train_predictor_model()
         self.predict_bal_3_from_456()
+
+        self.state_matrix = self.df[self.state_space].values.copy()
 
     def train_predictor_model(self):
         features_789 = ['UR_789', 'PR_789', 'INT', 'L_P_789', 'AVG_BALANCE_789']
         target = 'AVG_BALANCE_456'
-
-        self.model_0 = None
-        self.model_1 = None
 
         model_grid = {
             'rf': {
@@ -55,7 +57,7 @@ class CreditLimitEnv:
             best_score, best_model = -np.inf, None
 
             for cfg in model_grid.values():
-                grid = GridSearchCV(cfg['model'], cfg['params'], cv=3, scoring='r2', n_jobs=-1)
+                grid = GridSearchCV(cfg['model'], cfg['params'], cv=2, scoring='r2', n_jobs=-1)
                 grid.fit(X, y)
                 if grid.best_score_ > best_score:
                     best_score = grid.best_score_
@@ -67,20 +69,35 @@ class CreditLimitEnv:
                 self.model_1 = best_model
 
     def predict_bal_3_from_456(self):
-        features_456 = ['UR_456', 'PR_456', 'INT', 'L_P', 'AVG_BALANCE_456']
-        preds = []
+        # Define mapping from 456 to 789 naming
+        feature_map = {
+            'UR_456': 'UR_789',
+            'PR_456': 'PR_789',
+            'INT': 'INT',
+            'L_P': 'L_P_789',
+            'AVG_BALANCE_456': 'AVG_BALANCE_789'
+        }
 
-        for _, row in self.df.iterrows():
-            model = self.model_0 if row['BALANCE_CLASS'] == 0 else self.model_1
-            X_row = row[features_456].values.reshape(1, -1)
-            pred = model.predict(X_row)[0] if model else 0.0
-            preds.append(pred)
+        # Must match this exact order
+        features_ordered = ['UR_789', 'PR_789', 'INT', 'L_P_789', 'AVG_BALANCE_789']
+
+        # Rename and reorder
+        df_renamed = self.df[list(feature_map.keys())].rename(columns=feature_map)
+        df_renamed = df_renamed[features_ordered]
+
+        preds = np.zeros(len(self.df))
+
+        for cls, model in [(0, self.model_0), (1, self.model_1)]:
+            if model is None:
+                continue
+            mask = self.df['BALANCE_CLASS'] == cls
+            preds[mask] = model.predict(df_renamed.loc[mask])
 
         self.df['BAL_3_pred'] = preds
 
     def reset(self):
         self.current_step = np.random.randint(0, self.n_customers)
-        return self.df.loc[self.current_step, self.state_space].values
+        return self.state_matrix[self.current_step]
 
     def step(self, action):
         row = self.df.iloc[self.current_step]
@@ -98,7 +115,7 @@ class CreditLimitEnv:
         new_dp_bin = pd.cut([delta_prov], bins=self.provision_bins, labels=False, include_lowest=True)
         new_dp_bin = int(new_dp_bin[0]) if new_dp_bin.size > 0 and not pd.isna(new_dp_bin[0]) else 0
 
-        new_state = row[self.state_space].values.copy()
+        new_state = self.state_matrix[self.current_step].copy()
         new_state[self.state_space.index('D_PROVISION_bin')] = new_dp_bin
 
         info = {
@@ -110,7 +127,6 @@ class CreditLimitEnv:
             'ccf': self.ccf
         }
 
-        # Debug output
         if os.environ.get("DEBUG", "0") == "1":
             print(f"\n[ENV DEBUG] Step Index: {self.current_step}")
             print(f"Action: {action}, New Limit: {new_l_p:.2f}, PD: {pd_value}")
