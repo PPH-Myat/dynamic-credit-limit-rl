@@ -209,4 +209,4 @@ notebook/RL_final.ipynb
 debugging.ipynb
 
 # Trained DQN model (PyTorch binary)
-best_dqn_model.pth
+models/best_dqn_model.pth
