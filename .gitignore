@@ -201,3 +201,12 @@ data/raw/*.csv
 
 # Ignore PyCharm project files
 .idea/
+
+# Base original code
+notebook/RL_final.ipynb
+
+# notebook for debugging
+debugging.ipynb
+
+# Trained DQN model (PyTorch binary)
+best_dqn_model.pth
